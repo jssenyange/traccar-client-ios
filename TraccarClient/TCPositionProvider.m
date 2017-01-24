@@ -22,7 +22,6 @@
 
 @property (nonatomic, strong) CLLocationManager *locationManager;
 @property (nonatomic, strong) CLLocation *lastLocation;
-@property (nonatomic, readonly) double batteryLevel;
 
 @property (nonatomic, strong) NSString *deviceId;
 @property (nonatomic, assign) long period;
@@ -39,7 +38,11 @@
         
         self.locationManager.pausesLocationUpdatesAutomatically = NO;
         self.locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation;
-        
+
+        if ([self.locationManager respondsToSelector:@selector(allowsBackgroundLocationUpdates)]) {
+            self.locationManager.allowsBackgroundLocationUpdates = YES;
+        }
+
         NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
         self.deviceId = [userDefaults stringForKey:@"device_id_preference"];
         self.period = [userDefaults integerForKey:@"frequency_preference"];
@@ -60,7 +63,11 @@
 
 - (double)getBatteryLevel {
     UIDevice *device = [UIDevice currentDevice];
-    return device.batteryLevel * 100;
+    if (device.batteryState != UIDeviceBatteryStateUnknown) {
+        return device.batteryLevel * 100;
+    } else {
+        return 0;
+    }
 }
 
 - (void)locationManager:(CLLocationManager *)manager
@@ -73,7 +80,7 @@
         TCPosition *position = [[TCPosition alloc] initWithManagedObjectContext:[TCDatabaseHelper managedObjectContext]];
         position.deviceId = self.deviceId;
         position.location = location;
-        position.battery = self.batteryLevel;
+        position.battery = [self getBatteryLevel];
         
         [self.delegate didUpdatePosition:position];
         self.lastLocation = location;
